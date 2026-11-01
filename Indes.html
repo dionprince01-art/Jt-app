@@ -1,71 +1,46 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Test Vidéo</title>
-<style>
-  body { background:#111; color:#fff; font-family:sans-serif; padding:15px; }
-  input, button { width:100%; padding:12px; margin-bottom:10px; font-size:16px; box-sizing:border-box; }
-  button { background:#e87b35; color:#fff; border:none; font-weight:bold; }
-  #out { background:#000; color:#0f0; padding:10px; font-family:monospace; white-space:pre-wrap; font-size:12px; min-height:100px; }
-</style>
-</head>
-<body>
-<input type="text" id="key" placeholder="Colle ta clé API ici (sk-...)">
-<button id="btn">LANCER LE TEST (4 secondes)</button>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{background:#111;color:#fff;font-family:sans-serif;padding:10px}input,button{width:100%;padding:12px;margin:5px 0;box-sizing:border-box;font-size:16px}button{background:#e87b35;color:#fff;border:none;font-weight:bold}#out{background:#000;color:#0f0;padding:10px;font-family:monospace;white-space:pre-wrap;font-size:12px;min-height:150px}</style>
+</head><body>
+<input type="text" id="k" placeholder="Colle ta clé ici (sk-...)">
+<button id="b">TESTER (attente auto si file pleine)</button>
 <div id="out">En attente...</div>
-
 <script>
-document.getElementById('btn').addEventListener('click', async () => {
-  const key = document.getElementById('key').value.trim();
-  const out = document.getElementById('out');
-  out.style.color = '#ff0';
-  out.textContent = "Envoi à l'API (ça peut prendre 10s)...";
-
-  try {
-    // 1. Création de la tâche
-    let res = await fetch("https://apihub.agnes-ai.com/v1/videos", {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "agnes-video-2.5-flash",
-        prompt: "Un chat mignon qui cligne des yeux",
-        seconds: "4",
-        size: "720P",
-        aspect_ratio: "16:9",
-        mode: "text"
-      })
+document.getElementById('b').onclick = async () => {
+  const key = document.getElementById('k').value.trim(), out = document.getElementById('out');
+  out.style.color = '#ff0'; out.textContent = "Envoi... (si file pleine, j'attends 60s et je réessaie)";
+  
+  for (let i = 0; i < 20; i++) {
+    let r = await fetch("https://apihub.agnes-ai.com/v1/videos", {
+      method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "agnes-video-2.5-flash", prompt: "chat mignon", seconds: "4", size: "720P", aspect_ratio: "16:9", mode: "text" })
     });
+    let d = await r.json();
     
-    let data = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(data));
-
-    const videoId = data.video_id || data.id;
-    out.textContent = "✅ Tâche créée ! ID: " + videoId + "\nAttente de la génération (patientez)...";
-
-    // 2. Attente (polling)
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 5000)); // Attend 5s
-      let pRes = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + videoId + "&model_name=agnes-video-2.5-flash", {
-        headers: { "Authorization": "Bearer " + key }
-      });
-      let pData = await pRes.json();
-      
-      out.textContent = "Statut: " + (pData.status || '...') + " (" + (pData.progress || 0) + "%)";
-      
-      if (pData.status === "completed" || pData.status === "succeeded" || pData.status === "done") {
-        out.style.color = '#0f0';
-        out.textContent += "\n\n✅ VIDÉO PRÊTE !\nLien :\n" + (pData.url || pData.metadata?.url);
-        break;
+    if (r.ok) {
+      const vid = d.video_id || d.id;
+      out.style.color = '#0f0'; out.textContent = "✅ Tâche acceptée ! ID: " + vid + "\nGénération en cours...";
+      for (let j = 0; j < 30; j++) {
+        await new Promise(x => setTimeout(x, 5000));
+        let p = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + vid + "&model_name=agnes-video-2.5-flash", { headers: { "Authorization": "Bearer " + key } });
+        let pd = await p.json();
+        out.textContent = "Statut: " + (pd.status || '?') + " (" + (pd.progress || 0) + "%)";
+        if (pd.status === "completed" || pd.status === "succeeded") {
+          out.style.color = '#0f0'; out.textContent += "\n\n✅ VIDÉO PRÊTE:\n" + (pd.url || pd.metadata?.url); return;
+        }
+        if (pd.status === "failed") { out.style.color = '#f44'; out.textContent = "❌ Échec de génération"; return; }
       }
-      if (pData.status === "failed") throw new Error("Échec de la génération");
+      out.style.color = '#f44'; out.textContent = "❌ Timeout (vidéo pas prête en 2min30)"; return;
     }
-  } catch(e) {
-    out.style.color = '#f44';
-    out.textContent = "❌ ERREUR:\n" + e.message;
+    
+    if (d.error && d.error.code === "video_queue_full") {
+      out.style.color = '#ff0'; out.textContent = "⏳ File pleine. Tentative " + (i+1) + "/20. J'attends 60s...";
+      await new Promise(x => setTimeout(x, 60000));
+    } else {
+      out.style.color = '#f44'; out.textContent = "❌ Erreur: " + JSON.stringify(d); return;
+    }
   }
-});
+  out.style.color = '#f44'; out.textContent = "❌ 20 tentatives échouées. Réessaie plus tard (heures creuses).";
+};
 </script>
-</body>
-</html>
+</body></html>
