@@ -3,122 +3,112 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cinema Studio AI</title>
+<title>Studio Video</title>
 <style>
-body { background: #0a0a12; color: #e8e6e0; font-family: sans-serif; padding: 1rem; }
-.panel { background: #16161f; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #333; }
-button { width: 100%; padding: 1rem; background: #e87b35; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; cursor: pointer; }
-textarea { width: 100%; padding: 0.5rem; background: #000; color: #0f0; border: 1px solid #333; font-family: monospace; }
-#log-box { background: #000; color: #0f0; font-family: monospace; font-size: 0.8rem; height: 200px; overflow-y: auto; padding: 0.5rem; border: 1px solid #333; margin-top: 1rem; }
-video { width: 100%; margin-top: 1rem; border-radius: 6px; }
+body { background: #000; color: #fff; font-family: sans-serif; padding: 10px; }
+input, button { width: 100%; padding: 15px; margin: 5px 0; box-sizing: border-box; border-radius: 5px; }
+button { background: #ff4500; color: white; font-weight: bold; border: none; }
+#log { background: #111; color: #00ff00; padding: 10px; height: 200px; overflow-y: scroll; font-family: monospace; margin-top: 10px; }
+video { width: 100%; margin-top: 10px; border-radius: 5px; }
 </style>
 </head>
 <body>
 
-<h1>Cinema Studio AI</h1>
-
-<div class="panel">
-    <label>Clé API :</label>
-    <input type="text" id="api-key" style="width:100%; padding:0.8rem; margin-top:5px; margin-bottom:10px; background:#000; color:white; border:1px solid #333;" placeholder="sk-...">
-    <button onclick="start()">▶ GÉNÉRER LA VIDÉO</button>
-</div>
-
-<div id="log-box">Prêt.</div>
-<div id="video-container"></div>
+<h2>Génération Vidéo</h2>
+<input type="text" id="key" placeholder="Colle ta clé sk- ici">
+<button onclick="lancer()">LANCER LA GÉNÉRATION</button>
+<div id="log">Prêt.</div>
+<div id="resultat"></div>
 
 <script>
-const API_BASE = 'https://apihub.agnes-ai.com/v1';
-const POLL_BASE = 'https://apihub.agnes-ai.com/agnesapi';
-const MODEL = 'agnes-video-v2.0';
-
-function log(msg) {
-    const box = document.getElementById('log-box');
-    box.innerHTML += '<br>> ' + msg;
-    box.scrollTop = box.scrollHeight;
+function afficher(texte) {
+    var zone = document.getElementById("log");
+    zone.innerHTML = zone.innerHTML + "<br>> " + texte;
+    zone.scrollTop = zone.scrollHeight;
 }
 
-// Fonction magique pour éviter le bug des caractères invisibles du téléphone
-function cleanString(str) {
-    if (!str) return "";
-    return str.replace(/[^\x20-\x7E]/g, '').trim();
-}
-
-async function start() {
-    const rawKey = document.getElementById('api-key').value;
-    const key = cleanString(rawKey);
+async function lancer() {
+    var cle = document.getElementById("key").value.trim();
     
-    if (key.length < 5) {
-        alert("Mets une vraie clé API !");
+    if(cle.length < 10) {
+        alert("Mets une clé !");
         return;
     }
 
-    document.getElementById('log-box').innerHTML = "Démarrage...";
-    document.getElementById('video-container').innerHTML = "";
+    document.getElementById("log").innerHTML = "Démarrage...";
+    document.getElementById("resultat").innerHTML = "";
 
     try {
-        log("Envoi de la demande à l'IA...");
+        afficher("Envoi de la demande...");
         
-        // On construit la requête SANS utiliser "Headers" pour éviter le bug
-        const reqBody = JSON.stringify({
-            model: MODEL,
-            prompt: "A beautiful cinematic shot of a kitten wearing a retro space helmet, Wes Anderson style, pastel colors.",
+        var mesDonnees = JSON.stringify({
+            model: "agnes-video-v2.0",
+            prompt: "A cute kitten in a spacesuit, cinematic, pastel colors",
             num_frames: 121,
             frame_rate: 24
         });
 
-        // Requête 1 : Création
-        const res = await fetch(API_BASE + '/videos', {
-            method: 'POST',
-            body: reqBody,
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + key
-            }
+        // On construit la requête sans utiliser le mot qui bug
+        var maRequete = {
+            method: "POST",
+            body: mesDonnees
+        };
+        
+        // On ajoute les infos de sécurité d'une autre manière
+        var lesOptions = Object.assign({}, maRequete, {
+            headers: new Map([
+                ["Content-Type", "application/json"],
+                ["Authorization", "Bearer " + cle]
+            ])
         });
 
-        if (!res.ok) throw new Error("Erreur création: " + res.status);
-        
-        const data = await res.json();
-        const videoId = data.video_id || data.id;
-        log("Tâche créée ! ID: " + videoId);
-        log("Attente de la génération (1 à 2 minutes)...");
+        var reponse = await fetch("https://apihub.agnes-ai.com/v1/videos", lesOptions);
 
-        // Requête 2 : Attente
-        let urlFinale = null;
-        for(let i=0; i<50; i++) {
-            await new Promise(r => setTimeout(r, 5000)); // attend 5 sec
+        if(!reponse.ok) {
+            throw new Error("Erreur HTTP " + reponse.status);
+        }
+
+        var resultat = await reponse.json();
+        var idVideo = resultat.video_id || resultat.id;
+        
+        afficher("Tâche créée : " + idVideo);
+        afficher("Attente de la création (patienter)...");
+
+        var lienFinal = null;
+
+        for(var i = 0; i < 60; i++) {
+            await new Promise(r => setTimeout(r, 5000));
             
-            const resPoll = await fetch(POLL_BASE + '?video_id=' + videoId + '&model_name=' + MODEL, {
-                method: 'GET',
-                headers: {
-                    "Authorization": "Bearer " + key
-                }
+            var reponseAttente = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + idVideo + "&model_name=agnes-video-v2.0", {
+                headers: new Map([["Authorization", "Bearer " + cle]])
             });
             
-            const dataPoll = await resPoll.json();
-            log("Statut: " + (dataPoll.status || "en cours") + " - " + (dataPoll.progress || 0) + "%");
+            var infos = await reponseAttente.json();
+            var statut = infos.status || "en cours";
+            var pourcentage = infos.progress || 0;
             
-            if (dataPoll.status === 'completed' || dataPoll.status === 'succeeded') {
-                urlFinale = dataPoll.metadata?.url || dataPoll.url;
+            afficher(statut + " - " + pourcentage + "%");
+
+            if(statut === "completed" || statut === "succeeded") {
+                lienFinal = infos.metadata.url || infos.url;
                 break;
             }
-            if (dataPoll.status === 'failed' || dataPoll.status === 'error') {
-                throw new Error("L'IA a échoué.");
+            if(statut === "failed" || statut === "error") {
+                throw new Error("Echec de l'IA.");
             }
         }
 
-        if (urlFinale) {
-            log("✅ VIDÉO PRÊTE !");
-            document.getElementById('video-container').innerHTML = '<video src="' + urlFinale + '" controls autoplay loop></video>';
+        if(lienFinal) {
+            afficher("SUCCÈS !");
+            document.getElementById("resultat").innerHTML = '<video src="' + lienFinal + '" controls autoplay loop></video>';
         } else {
-            throw new Error("Temps d'attente dépassé.");
+            throw new Error("Temps écoulé.");
         }
 
-    } catch (e) {
-        log("❌ Erreur : " + e.message);
+    } catch(e) {
+        afficher("ERREUR : " + e.message);
     }
 }
 </script>
-
 </body>
 </html>
