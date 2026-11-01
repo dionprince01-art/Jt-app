@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JT Simple</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0a0a12;color:#e8e6e0;max-width:700px;margin:0 auto;padding:20px;line-height:1.5}
+h1{color:#e5c15a;font-size:1.5rem;text-align:center}
+.panel{background:#16161f;border:1px solid #2a2a3a;border-radius:8px;padding:16px;margin-bottom:16px}
+label{display:block;font-size:.75rem;color:#8a8896;margin-bottom:6px;text-transform:uppercase}
+input,select{width:100%;padding:10px;border-radius:6px;border:1px solid #2a2a3a;background:#0a0a12;color:#e8e6e0;font-size:.9rem;margin-bottom:10px;box-sizing:border-box}
+button{width:100%;padding:12px;border-radius:6px;border:1px solid #e5c15a;background:rgba(229,193,90,.1);color:#e5c15a;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:8px}
+button:disabled{opacity:.4;cursor:not-allowed}
+#stop{border-color:#c85a4a;color:#c85a4a;display:none}
+#stop.visible{display:block}
+#log{background:#05050a;border:1px solid #2a2a3a;border-radius:6px;padding:10px;max-height:200px;overflow-y:auto;font-family:monospace;font-size:.75rem;line-height:1.6}
+.log-info{color:#e5c15a}
+.log-ok{color:#4a9d6a}
+.log-err{color:#c85a4a}
+video{width:100%;border-radius:6px;margin-top:8px;background:#000}
+</style>
+</head>
+<body>
+<h1>JT Simple</h1>
+
+<div class="panel">
+<label>Clé API Agnes</label>
+<input type="password" id="key" placeholder="sk-...">
+<button onclick="saveKey()">Enregistrer la clé</button>
+<div id="status" style="font-size:.75rem;color:#8a8896;margin-top:8px">Aucune clé enregistrée</div>
+</div>
+
+<div class="panel">
+<label>Parti</label>
+<select id="parti">
+<option value="lfi">La France insoumise</option>
+<option value="rn">Rassemblement National</option>
+<option value="ps">Parti Socialiste</option>
+</select>
+<button id="launch" onclick="launch()">Lancer le JT</button>
+<button id="stop" onclick="stopIt()">Arrêter</button>
+</div>
+
+<div class="panel">
+<label>Journal</label>
+<div id="log"></div>
+</div>
+
+<div id="videos"></div>
+
+<script>
+const API_BASE='https://apihub.agnes-ai.com/v1';
+const POLL_BASE='https://apihub.agnes-ai.com/agnesapi';
+const MODEL='agnes-video-v2.0';
+
+let running=false;
+let stop=false;
+let key='';
+
+function log(msg,type){
+type=type||'info';
+const l=document.getElementById('log');
+const line=document.createElement('div');
+line.className='log-'+type;
+line.textContent='['+new Date().toLocaleTimeString('fr-FR')+'] '+msg;
+l.appendChild(line);
+l.scrollTop=l.scrollHeight;
+}
+
+function saveKey(){
+const k=document.getElementById('key').value.trim();
+if(!k){log('Clé vide','err');return}
+try{localStorage.setItem('jt_key',k)}catch(e){}
+key=k;
+document.getElementById('status').textContent='Clé active : '+k.slice(0,8)+'...';
+document.getElementById('status').style.color='#4a9d6a';
+log('Clé enregistrée','ok');
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+async function createVideo(prompt){
+const safePrompt = prompt.replace(/[^\x20-\x7E]/g, ' ');
+const body = {
+    model: MODEL,
+    prompt: safePrompt,
+    num_frames: 145,
+    frame_rate: 24
+};
+
+const res = await fetch(API_BASE+'/videos', {
+    method: 'POST',
+    headers: {
+        'Authorization': 'Bearer ' + key.trim(),
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+});
+
+if(!res.ok) {
+    const txt = await res.text();
+    throw new Error('API: ' + txt.slice(0, 100));
+}
+const d = await res.json();
+return d.video_id || d.id || d.task_id;
+}
+
+async function pollVideo(id){
+for(let i=0;i<60;i++){
+if(stop)throw new Error('Arrêt');
+const url = POLL_BASE + '?video_id=' + encodeURIComponent(id) + '&model_name=' + encodeURIComponent(MODEL);
+const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Authorization': 'Bearer ' + key.trim() }
+});
+
+const d = await res.json();
+const s = d.status || 'unknown';
+const p = d.progress || 0;
+log('Statut : ' + s + ' (' + p + '%)');
+
+if(s === 'completed' || s === 'succeeded'){
+    const u = (d.metadata && d.metadata.url) || d.url || (d.output && d.output.url);
+    if(u) return u;
+    throw new Error('Pas d URL vidéo');
+}
+if(s === 'failed' || s === 'error') throw new Error('Echec génération');
+await sleep(10000);
+}
+throw new Error('Délai dépassé');
+}
+
+async function launch(){
+if(running)return;
+if(!key){log('Ajoutez une clé API','err');return}
+running=true; stop=false;
+
+document.getElementById('launch').disabled=true;
+document.getElementById('stop').classList.add('visible');
+document.getElementById('videos').innerHTML='';
+
+const parti = document.getElementById('parti').value;
+log('Démarrage JT ' + parti.toUpperCase(), 'info');
+
+try {
+    for(let i=0;i<3;i++){
+        if(stop) break;
+        const isPlateau = (i === 0 || i === 2);
+        
+        const prompt = "Style Wes Anderson, cute cat with retro helmet and pastel kimono, 35mm film, perfect symmetry, pastel colors. " + 
+                       (isPlateau ? "Symmetric retro TV studio, cat presenter. " : "Field report in a retro set. ") + 
+                       "Multi-shot editing, cuts, shot-reverse-shot. Character speaks French. No text.";
+
+        log('Envoi Scène ' + (i+1) + '/3...', 'info');
+        const id = await createVideo(prompt);
+        log('Scène ' + (i+1) + ' en cours de création...', 'info');
+        
+        const url = await pollVideo(id);
+        log('Scène ' + (i+1) + ' prête !', 'ok');
+        
+        const v = document.createElement('video');
+        v.src = url;
+        v.controls = true;
+        v.setAttribute('playsinline','');
+        document.getElementById('videos').appendChild(v);
+        
+        if(i < 2 && !stop) {
+            log('Pause 30s...', 'info');
+            await sleep(30000);
+        }
+    }
+    log('JT terminé !', 'ok');
+} catch(e) {
+    log('Erreur : ' + e.message, 'err');
+}
+
+running=false;
+document.getElementById('launch').disabled=false;
+document.getElementById('stop').classList.remove('visible');
+}
+
+function stopIt(){
+stop=true;
+log('Arrêt demandé','err');
+}
+
+const saved = localStorage.getItem('jt_key');
+if(saved){
+document.getElementById('key').value=saved;
+key=saved;
+document.getElementById('status').textContent='Clé active : '+saved.slice(0,8)+'...';
+document.getElementById('status').style.color='#4a9d6a';
+}
+log('Prêt. Cliquez sur Lancer.','info');
+</script>
+</body>
+</html>
