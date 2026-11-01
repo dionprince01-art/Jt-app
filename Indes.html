@@ -1,189 +1,177 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cinéma Studio 901</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cinema Studio AI</title>
 <style>
-:root{--bg:#0a0a12;--bg2:#12121c;--panel:#16161f;--border:#2a2a3a;--ink:#e8e6e0;--dim:#8a8896;--acc:#e5c15a;--acc2:#e87b35;--ok:#4a9d6a;--err:#c85a4a}
-*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,sans-serif}
-body{background:var(--bg);color:var(--ink);padding:1.5rem 1rem 20rem;line-height:1.5}
-header{text-align:center;margin-bottom:1.5rem}
-h1{font-size:1.8rem;background:linear-gradient(135deg,var(--acc2),var(--acc));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.banner{background:var(--panel);border-left:2px solid var(--acc);padding:1rem;font-size:.8rem;color:var(--dim);margin-bottom:1rem}
-.panel,.section{background:var(--panel);border:1px solid var(--border);padding:1rem;margin-bottom:1rem}
-input,textarea{width:100%;padding:.8rem;background:var(--bg2);border:1px solid var(--border);color:var(--ink);margin-bottom:.5rem}
-.btn{width:100%;padding:1rem;background:var(--bg2);border:1px solid var(--border);color:var(--ink);font-weight:bold;cursor:pointer;text-transform:uppercase}
-.btn-primary{background:linear-gradient(135deg,var(--acc2),var(--acc));color:#000;border:none}
-.btn:disabled{opacity:.5}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0a0a12;--bg2:#12121c;--panel:#16161f;--border:#2a2a3a;--ink:#e8e6e0;--dim:#8a8896;--acc:#e5c15a;--acc2:#e87b35;--ok:#4a9d6a;--err:#c85a4a;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:1.5rem 1rem 24rem;font-size:15px;line-height:1.55;max-width:1100px;margin:0 auto}
+h1{font-size:1.8rem;text-align:center;margin-bottom:1.5rem;background:linear-gradient(135deg,var(--acc2),var(--acc));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.panel,.section{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:1.2rem;margin-bottom:1rem}
+.btn{width:100%;padding:1rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--ink);font-size:.85rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-bottom:.7rem;transition:all .2s;font-family:inherit}
+.btn:hover:not(:disabled){background:var(--border)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,rgba(232,123,53,.2),rgba(229,193,90,.15));border-color:var(--acc);color:var(--acc);font-size:1.15rem;padding:1.2rem;}
+textarea{width:100%;padding:.85rem 1rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--ink);font-family:monospace;font-size:.78rem;margin-bottom:.6rem;resize:vertical;min-height:76px;}
+textarea:focus{outline:none;border-color:var(--acc);}
 .hidden{display:none!important}
-.videos-grid{display:grid;grid-template-columns:1fr;gap:1rem}
-video{width:100%;background:#000}
-.log{background:#000;font-family:monospace;font-size:.7rem;height:150px;overflow-y:auto;padding:.5rem;margin-top:1rem}
+#log-box{background:#000;color:#0f0;font-family:monospace;font-size:.72rem;height:150px;overflow-y:auto;padding:.5rem;border-radius:6px;border:1px solid var(--border);margin-top:1rem;}
+.videos-grid{display:grid;grid-template-columns:1fr;gap:1rem;margin-top:1rem;}
+.scene-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:1rem;}
+.scene-card video{width:100%;border-radius:4px;background:#000;display:block;}
 </style>
 </head>
 <body>
 
-<header>
-<h1>Cinéma Studio 901</h1>
-</header>
+<h1>Cinema Studio AI</h1>
 
-<div class="banner">
-<strong>Un seul bouton.</strong> Récupère l'actu LFI, écrit un scénario, génère les vidéos en parallèle et les joue comme un JT.
+<div class="panel" id="api-panel">
+<label style="font-size:.75rem;font-weight:bold;margin-bottom:.5rem;display:block;">API Keys (One per line)</label>
+<textarea id="api-keys-input" rows="3" spellcheck="false" autocomplete="off"></textarea>
+<button type="button" class="btn" id="save-btn" onclick="saveKeys()">Save Keys</button>
+<div id="api-status" style="font-size:.75rem;margin-top:.5rem;">No keys saved.</div>
 </div>
 
 <div class="panel">
-<textarea id="api-keys-input" rows="3" placeholder="Collez vos clés API ici (une par ligne)"></textarea>
-<button class="btn" onclick="saveKeys()">Enregistrer les clés</button>
-<div id="api-status" style="font-size:0.8rem;margin-top:0.5rem;color:var(--dim)">Aucune clé enregistrée</div>
+<button type="button" class="btn btn-primary" id="launch-btn" onclick="runPipeline()">▶ Start Generation</button>
+<button type="button" class="btn hidden" id="play-btn" onclick="playVideo()">▶ Play Video</button>
 </div>
 
-<div class="panel">
-<button class="btn btn-primary" id="launch-btn" onclick="runJournal()">▶ Lancer le journal</button>
+<div class="section hidden" id="results-section">
+<h3>Generated Video</h3>
+<div class="videos-grid" id="video-container"></div>
 </div>
 
-<div class="section hidden" id="section-videos">
-<h3>Séquences vidéo</h3>
-<div class="videos-grid" id="videos-grid"></div>
-</div>
-
-<div class="section hidden" id="section-player">
-<button class="btn btn-primary" onclick="playFilm()">▶ Diffuser le journal</button>
-</div>
-
-<div class="log" id="log"></div>
+<div id="log-box"></div>
 
 <script>
 const API_BASE = 'https://apihub.agnes-ai.com/v1';
 const POLL_BASE = 'https://apihub.agnes-ai.com/agnesapi';
-const M_TEXT = 'agnes-2.5-flash', M_IMAGE = 'agnes-image-2.1-flash', M_VIDEO = 'agnes-video-v2.0';
-const STORAGE_KEY = 'cinema_keys_v1';
+const MODEL_VIDEO = 'agnes-video-v2.0';
+const STORAGE_KEY = 'studio_keys_v1';
 
-let keys = [], videos = [], isRunning = false;
+let keys = [];
+let isRunning = false;
 
 function log(msg) {
-  const l = document.getElementById('log');
-  l.innerHTML += `<div>> ${msg}</div>`;
-  l.scrollTop = l.scrollHeight;
+    const box = document.getElementById('log-box');
+    box.innerHTML += `> ${msg}<br>`;
+    box.scrollTop = box.scrollHeight;
 }
 
 function saveKeys() {
-  const val = document.getElementById('api-keys-input').value;
-  keys = val.split('\n').map(k => k.trim()).filter(k => k.startsWith('sk-'));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
-  document.getElementById('api-status').innerHTML = `<span style="color:var(--ok)">✅ ${keys.length} clé(s) active(s)</span>`;
+    const input = document.getElementById('api-keys-input').value;
+    keys = input.split('\n').map(k => k.trim()).filter(k => k.length > 5);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+    document.getElementById('api-status').innerHTML = `✅ ${keys.length} key(s) active.`;
 }
 
 function init() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
-    keys = JSON.parse(saved);
-    document.getElementById('api-keys-input').value = keys.join('\n');
-    document.getElementById('api-status').innerHTML = `<span style="color:var(--ok)">✅ ${keys.length} clé(s) active(s)</span>`;
-  }
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        keys = JSON.parse(saved);
+        document.getElementById('api-keys-input').value = keys.join('\n');
+        document.getElementById('api-status').innerHTML = `✅ ${keys.length} key(s) active.`;
+    }
 }
 
-async function apiFetch(url, options, keyIndex = 0) {
-  const key = keys[keyIndex % keys.length];
-  const res = await fetch(url, { ...options, headers: { ...options?.headers, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res;
+async function apiFetch(url, options) {
+    if (keys.length === 0) throw new Error("No API keys provided.");
+    const key = keys[Math.floor(Math.random() * keys.length)];
+    
+    if (!options.headers) options.headers = {};
+    options.headers['Authorization'] = `Bearer ${key}`;
+    options.headers['Content-Type'] = 'application/json';
+
+    const res = await fetch(url, options);
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`HTTP ${res.status}: ${err.slice(0, 50)}`);
+    }
+    return res;
 }
 
-async function runJournal() {
-  if (isRunning || keys.length === 0) return alert("Ajoutez des clés API !");
-  isRunning = true;
-  document.getElementById('launch-btn').disabled = true;
-  document.getElementById('section-videos').classList.remove('hidden');
-  document.getElementById('videos-grid').innerHTML = '';
-  videos = [];
-  log("Démarrage du JT LFI...");
-
-  try {
-    // 1. News
-    log("Récupération des news LFI...");
-    const rssUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://news.google.com/rss/search?q=La+France+insoumise&hl=fr&gl=FR&ceid=FR:fr');
-    const rss = await fetch(rssUrl).then(r => r.json());
-    const news = rss.items.slice(0, 3); // On prend 3 news pour faire court et rapide
-    if(!news.length) throw new Error("Pas de news");
-
-    // 2. Scénario
-    log("Génération du scénario Wes Anderson...");
-    const promptScript = `Tu es scénariste. Crée un mini-JT sur : ${news.map(n=>n.title).join(', ')}. 
-    Format JSON strict: {"scenes":[{"id":1,"dialogue":"phrase courte"}]}. 
-    Fais 3 scènes. Style chatons kung-fu.`;
+async function runPipeline() {
+    if (isRunning) return;
+    if (keys.length === 0) return alert("Please save an API key first.");
     
-    const resText = await apiFetch(API_BASE+'/chat/completions', {
-      method: 'POST',
-      body: JSON.stringify({ model: M_TEXT, messages: [{role:'user', content:promptScript}], temperature: 0.7 })
-    });
-    const dataText = await resText.json();
-    let content = dataText.choices[0].message.content.replace(/```json/g, '').replace(/```/g, '');
-    const script = JSON.parse(content);
+    isRunning = true;
+    document.getElementById('launch-btn').disabled = true;
+    document.getElementById('results-section').classList.remove('hidden');
+    document.getElementById('video-container').innerHTML = '';
+    document.getElementById('play-btn').classList.add('hidden');
     
-    // 3. Vidéos
-    log(`${script.scenes.length} scènes à générer...`);
-    for (let i = 0; i < script.scenes.length; i++) {
-        const sc = script.scenes[i];
-        log(`Génération Vidéo ${i+1}/${script.scenes.length}...`);
+    log("Starting pipeline...");
+
+    try {
+        log("Creating video task...");
+        const prompt = "A beautiful cinematic shot of a kitten wearing a retro space helmet, Wes Anderson style, pastel colors, symmetrical.";
         
-        const card = document.createElement('div');
-        card.innerHTML = `<div id="vid-${i}" style="padding:1rem;border:1px solid #333;margin-bottom:1rem">Patientez...<br><small>${sc.dialogue}</small></div>`;
-        document.getElementById('videos-grid').appendChild(card);
-
-        // Création vidéo (simplifié pour le test)
-        const resVid = await apiFetch(API_BASE+'/videos', {
+        const resTask = await apiFetch(`${API_BASE}/videos`, {
             method: 'POST',
-            body: JSON.stringify({ 
-                model: M_VIDEO, 
-                prompt: `Wes Anderson style, kitten kung fu, pastel. Dialogue: ${sc.dialogue}`,
-                num_frames: 145, frame_rate: 24
+            body: JSON.stringify({
+                model: MODEL_VIDEO,
+                prompt: prompt,
+                num_frames: 121,
+                frame_rate: 24
             })
         });
-        const dataVid = await resVid.json();
-        const vidId = dataVid.video_id;
+        
+        const dataTask = await resTask.json();
+        const videoId = dataTask.video_id || dataTask.id;
+        if (!videoId) throw new Error("No video ID returned.");
+        
+        log(`Task created: ${videoId}`);
+        log("Waiting for generation (this can take up to 2 mins)...");
 
-        // Attente (Polling simplifié)
-        let url = null;
-        for(let j=0; j<50; j++) {
+        let videoUrl = null;
+        for (let i = 0; i < 60; i++) {
             await new Promise(r => setTimeout(r, 5000));
-            const resPoll = await apiFetch(POLL_BASE+`?video_id=${vidId}&model_name=${M_VIDEO}`, {method:'GET'});
-            const dPoll = await resPoll.json();
-            if(dPoll.status === 'completed') { url = dPoll.metadata.url; break; }
-            document.getElementById(`vid-${i}`).innerHTML = `En cours... ${dPoll.progress||0}%<br><small>${sc.dialogue}</small>`;
+            
+            const resPoll = await apiFetch(`${POLL_BASE}?video_id=${videoId}&model_name=${MODEL_VIDEO}`, {
+                method: 'GET'
+            });
+            
+            const dataPoll = await resPoll.json();
+            const progress = dataPoll.progress || 0;
+            log(`Status: ${dataPoll.status} - ${progress}%`);
+            
+            if (dataPoll.status === 'completed' || dataPoll.status === 'succeeded') {
+                videoUrl = (dataPoll.metadata && dataPoll.metadata.url) || dataPoll.url;
+                break;
+            }
+            if (dataPoll.status === 'failed' || dataPoll.status === 'error') {
+                throw new Error("Generation failed on server.");
+            }
         }
 
-        if(url) {
-            videos.push(url);
-            document.getElementById(`vid-${i}`).innerHTML = `<video src="${url}" controls></video>`;
-            log(`Vidéo ${i+1} prête !`);
+        if (videoUrl) {
+            log("✅ Video ready!");
+            document.getElementById('video-container').innerHTML = `
+                <div class="scene-card">
+                    <video src="${videoUrl}" controls></video>
+                </div>
+            `;
+            document.getElementById('play-btn').classList.remove('hidden');
+            document.getElementById('play-btn').onclick = () => {
+                window.open(videoUrl, '_blank');
+            };
+        } else {
+            throw new Error("Timeout or missing URL.");
         }
-    }
-    document.getElementById('section-player').classList.remove('hidden');
-    log("✅ JT Terminé !");
 
-  } catch(e) {
-    log(`❌ Erreur: ${e.message}`);
-  }
-  isRunning = false;
-  document.getElementById('launch-btn').disabled = false;
-}
-
-async function playFilm() {
-    for(const url of videos) {
-        await new Promise(r => {
-            const v = document.createElement('video');
-            v.src = url; v.controls = false; v.autoplay = true;
-            v.style = "position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;background:#000";
-            document.body.appendChild(v);
-            v.onended = () => { v.remove(); r(); };
-            v.play();
-            setTimeout(() => { if(document.body.contains(v)){ v.remove(); r(); } }, 10000);
-        });
+    } catch (err) {
+        log(`❌ Error: ${err.message}`);
     }
+
+    isRunning = false;
+    document.getElementById('launch-btn').disabled = false;
 }
 
 init();
 </script>
+
 </body>
 </html>
