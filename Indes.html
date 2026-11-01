@@ -28,10 +28,12 @@ function afficher(texte) {
 }
 
 async function lancer() {
-    var cle = document.getElementById("key").value.trim();
+    // On récupère la clé et on supprime TOUS les caractères invisibles
+    var cle = document.getElementById("key").value;
+    cle = cle.replace(/[^\x20-\x7E]/g, '').trim(); 
     
     if(cle.length < 10) {
-        alert("Mets une clé !");
+        alert("Clé invalide");
         return;
     }
 
@@ -41,38 +43,35 @@ async function lancer() {
     try {
         afficher("Envoi de la demande...");
         
-        var mesDonnees = JSON.stringify({
-            model: "agnes-video-v2.0",
-            prompt: "A cute kitten in a spacesuit, cinematic, pastel colors",
-            num_frames: 121,
-            frame_rate: 24
-        });
-
-        // On construit la requête sans utiliser le mot qui bug
+        // On utilise une méthode simple sans "Headers"
         var maRequete = {
             method: "POST",
-            body: mesDonnees
+            body: JSON.stringify({
+                model: "agnes-video-v2.0",
+                prompt: "A cute kitten in a spacesuit, cinematic, pastel colors",
+                num_frames: 121,
+                frame_rate: 24
+            })
         };
         
-        // On ajoute les infos de sécurité d'une autre manière
         var lesOptions = Object.assign({}, maRequete, {
-            headers: new Map([
-                ["Content-Type", "application/json"],
-                ["Authorization", "Bearer " + cle]
-            ])
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + cle
+            }
         });
 
         var reponse = await fetch("https://apihub.agnes-ai.com/v1/videos", lesOptions);
 
         if(!reponse.ok) {
-            throw new Error("Erreur HTTP " + reponse.status);
+            throw new Error("Erreur " + reponse.status);
         }
 
         var resultat = await reponse.json();
         var idVideo = resultat.video_id || resultat.id;
         
         afficher("Tâche créée : " + idVideo);
-        afficher("Attente de la création (patienter)...");
+        afficher("Attente de la création...");
 
         var lienFinal = null;
 
@@ -80,7 +79,9 @@ async function lancer() {
             await new Promise(r => setTimeout(r, 5000));
             
             var reponseAttente = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + idVideo + "&model_name=agnes-video-v2.0", {
-                headers: new Map([["Authorization", "Bearer " + cle]])
+                headers: {
+                    "Authorization": "Bearer " + cle
+                }
             });
             
             var infos = await reponseAttente.json();
