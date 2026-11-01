@@ -25,9 +25,8 @@ function afficher(texte) {
 }
 
 async function lancer() {
-    // 1. On nettoie la clé de TOUS les caractères bizarres
-    var cle = document.getElementById("key").value;
-    cle = cle.replace(/[^a-zA-Z0-9\-_]/g, ''); 
+    // On récupère la clé SANS la modifier
+    var cle = document.getElementById("key").value.trim();
     
     if(cle.length < 10) { return alert("Clé invalide"); }
 
@@ -36,7 +35,6 @@ async function lancer() {
     try {
         afficher("Envoi...");
         
-        // 2. On prépare les données
         var corps = JSON.stringify({
             model: "agnes-video-v2.0",
             prompt: "A cute kitten, cinematic",
@@ -44,17 +42,15 @@ async function lancer() {
             frame_rate: 24
         });
 
-        // 3. On construit la requête manuellement, sans utiliser de "Headers" qui buguent
         var maRequete = new Request("https://apihub.agnes-ai.com/v1/videos", {
             method: "POST",
             body: corps
         });
 
-        // 4. On ajoute la clé API de la façon la plus basique possible
+        // On ajoute la clé exactement comme le demande la doc
         maRequete.headers.append("Authorization", "Bearer " + cle);
         maRequete.headers.append("Content-Type", "application/json");
 
-        // 5. On lance la requête
         var reponse = await fetch(maRequete);
 
         if(!reponse.ok) throw new Error("Erreur API: " + reponse.status);
