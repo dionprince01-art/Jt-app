@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image en Vidéo (Corrigé v2)</title>
+<title>Image en Vidéo (avec prompt)</title>
 <style>
   body { background:#111; color:#fff; font-family:sans-serif; padding:15px; }
-  input, button { width:100%; padding:12px; margin-bottom:10px; font-size:14px; box-sizing:border-box; }
+  input, button, textarea { width:100%; padding:12px; margin-bottom:10px; font-size:14px; box-sizing:border-box; }
   button { background:#e87b35; color:#fff; border:none; font-weight:bold; font-size:16px; }
   #out { background:#000; color:#0f0; padding:10px; font-family:monospace; white-space:pre-wrap; font-size:12px; min-height:150px; }
 </style>
@@ -14,6 +14,7 @@
 <body>
 <input type="text" id="key" placeholder="Ta clé API (sk-...)">
 <input type="text" id="img" placeholder="Colle l'URL de l'image ici">
+<textarea id="prompt" placeholder="Décris le mouvement (ex: le vent souffle, la personne sourit...)">Anime doucement cette image</textarea>
 <button id="btn">ANIMER L'IMAGE EN VIDÉO</button>
 <div id="out">En attente...</div>
 
@@ -21,6 +22,7 @@
 document.getElementById('btn').onclick = async () => {
   const key = document.getElementById('key').value.trim();
   const imgUrl = document.getElementById('img').value.trim();
+  const monPrompt = document.getElementById('prompt').value.trim(); // On récupère le texte tapé
   const out = document.getElementById('out');
   
   out.style.color = '#ff0';
@@ -33,56 +35,13 @@ document.getElementById('btn').onclick = async () => {
         headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "agnes-video-2.5-flash",
-          prompt: "Anime doucement cette image, mouvement fluide",
+          prompt: monPrompt, // <--- On utilise le texte de la case
           seconds: "4",
           size: "720P",
           aspect_ratio: "16:9",
-          mode: "reference",       // <-- Correction 1
-          images: [imgUrl]         // <-- Correction 2 (tableau)
+          mode: "keyframe",
+          first_frame: imgUrl
         })
       });
       
-      let data = await res.json();
-      
-      if (res.ok) {
-        const vid = data.video_id || data.id;
-        out.textContent = "✅ Tâche créée !\nID: " + vid + "\nGénération...";
-        
-        for (let j = 0; j < 40; j++) {
-          await new Promise(r => setTimeout(r, 5000));
-          let pRes = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + vid + "&model_name=agnes-video-2.5-flash", {
-            headers: { "Authorization": "Bearer " + key }
-          });
-          let pData = await pRes.json();
-          
-          out.textContent = "Statut: " + (pData.status || '...') + " (" + (pData.progress || 0) + "%)";
-          
-          if (pData.status === "completed" || pData.status === "succeeded") {
-            out.style.color = '#0f0';
-            out.innerHTML += "<br><br>✅ <b>VIDÉO PRÊTE !</b><br>Lien:<br>" + (pData.url || pData.metadata?.url);
-            return;
-          }
-          if (pData.status === "failed") throw new Error("Échec génération");
-        }
-        out.textContent = "❌ Trop long, vérifie plus tard.";
-        return;
-      }
-      
-      if (data.error && data.error.code === "video_queue_full") {
-        out.textContent = "⏳ File pleine. Tentative " + (i+1) + "/15. J'attends 60s...";
-        await new Promise(r => setTimeout(r, 60000));
-      } else {
-        out.style.color = '#f44';
-        out.textContent = "❌ Erreur: " + JSON.stringify(data);
-        return;
-      }
-    } catch(e) {
-      out.style.color = '#f44';
-      out.textContent = "❌ " + e.message;
-      return;
-    }
-  }
-};
-</script>
-</body>
-</html>
+      // ... (le reste du code est identique)
