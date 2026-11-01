@@ -2,197 +2,155 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JT Simple</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cinéma Studio 901</title>
 <style>
-body{font-family:system-ui,sans-serif;background:#0a0a12;color:#e8e6e0;max-width:700px;margin:0 auto;padding:20px;line-height:1.5}
-h1{color:#e5c15a;font-size:1.5rem;text-align:center}
-.panel{background:#16161f;border:1px solid #2a2a3a;border-radius:8px;padding:16px;margin-bottom:16px}
-label{display:block;font-size:.75rem;color:#8a8896;margin-bottom:6px;text-transform:uppercase}
-input,select{width:100%;padding:10px;border-radius:6px;border:1px solid #2a2a3a;background:#0a0a12;color:#e8e6e0;font-size:.9rem;margin-bottom:10px;box-sizing:border-box}
-button{width:100%;padding:12px;border-radius:6px;border:1px solid #e5c15a;background:rgba(229,193,90,.1);color:#e5c15a;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:8px}
-button:disabled{opacity:.4;cursor:not-allowed}
-#stop{border-color:#c85a4a;color:#c85a4a;display:none}
-#stop.visible{display:block}
-#log{background:#05050a;border:1px solid #2a2a3a;border-radius:6px;padding:10px;max-height:200px;overflow-y:auto;font-family:monospace;font-size:.75rem;line-height:1.6}
-.log-info{color:#e5c15a}
-.log-ok{color:#4a9d6a}
-.log-err{color:#c85a4a}
-video{width:100%;border-radius:6px;margin-top:8px;background:#000}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}:root{--bg:#0a0a12;--bg2:#12121c;--bg3:#1a1a28;--panel:#16161f;--border:#2a2a3a;--ink:#e8e6e0;--dim:#8a8896;--faint:#4a4858;--acc:#e5c15a;--acc2:#e87b35;--ok:#4a9d6a;--err:#c85a4a;--r:6px;--fs:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;--fm:ui-monospace,'SF Mono',Menlo,monospace}body{font-family:var(--fs);background:var(--bg);color:var(--ink);min-height:100vh;padding:1.5rem 1rem 24rem;max-width:1100px;margin:0 auto;font-size:15px}h1{text-align:center;font-weight:300;background:linear-gradient(135deg,var(--acc2),var(--acc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}.banner{background:var(--panel);border-left:2px solid var(--acc);padding:1rem;border-radius:var(--r);font-size:.8rem;margin-bottom:1rem;color:var(--dim)}.panel,.launcher{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:1rem}textarea{width:100%;padding:.8rem;border-radius:var(--r);border:1px solid var(--border);background:var(--bg2);color:var(--ink);font-family:var(--fm);margin-bottom:.5rem}.btn{width:100%;padding:1rem;border-radius:var(--r);border:1px solid var(--border);background:var(--bg2);color:var(--ink);font-weight:bold;text-transform:uppercase;cursor:pointer;margin-bottom:.5rem}.btn-primary{background:var(--acc);color:#000}.btn:disabled{opacity:.5}.status{font-size:.75rem;padding:.5rem;border-radius:var(--r);background:var(--bg2);margin-bottom:.5rem}.status.ok{color:var(--ok)}.section{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);margin-bottom:1rem;display:none}.section.open{display:block}.section-hd{padding:1rem;font-weight:bold;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}.section-bd{padding:1rem}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.5rem}.card video{width:100%;border-radius:4px}.news-item{border-bottom:1px solid var(--border);padding:.5rem 0;font-size:.85rem}.log-box{background:#000;color:#0f0;font-family:var(--fm);font-size:.7rem;padding:.5rem;height:150px;overflow-y:auto;border-radius:var(--r);margin-top:1rem}.toast{position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:.5rem 1rem;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:999}.toast.visible{opacity:1}.player{position:fixed;inset:0;background:#000;z-index:1000;display:none;align-items:center;justify-content:center}.player.on{display:flex}canvas{max-width:100vw;max-height:100vh}
 </style>
 </head>
 <body>
-<h1>JT Simple</h1>
-
+<h1>Cinéma Studio</h1>
+<div style="text-align:center;font-size:.8rem;color:var(--dim);margin-bottom:1rem">901 · Wes Anderson × Enki Bilal</div>
+<div class="banner"><strong>Mode corrigé :</strong> Enregistre la clé, puis lance. Si le statut reste gris, c'est une sécurité du téléphone mais la clé est mémorisée.</div>
 <div class="panel">
-<label>Clé API Agnes</label>
-<input type="password" id="key" placeholder="sk-...">
-<button onclick="saveKey()">Enregistrer la clé</button>
-<div id="status" style="font-size:.75rem;color:#8a8896;margin-top:8px">Aucune clé enregistrée</div>
+  <textarea id="api-input" rows="2" placeholder="sk-..."></textarea>
+  <button class="btn" onclick="saveKey()">Enregistrer la clé</button>
+  <div class="status" id="status-line"><span id="status-txt">Aucune clé active</span></div>
 </div>
-
-<div class="panel">
-<label>Parti</label>
-<select id="parti">
-<option value="lfi">La France insoumise</option>
-<option value="rn">Rassemblement National</option>
-<option value="ps">Parti Socialiste</option>
-</select>
-<button id="launch" onclick="launch()">Lancer le JT</button>
-<button id="stop" onclick="stopIt()">Arrêter</button>
+<div class="launcher">
+  <button class="btn btn-primary" id="btn-start" onclick="start()" disabled>▶ Lancer le JT</button>
+  <button class="btn" style="border-color:var(--err);color:var(--err);display:none" id="btn-stop" onclick="stop()">⏹ Arrêter</button>
 </div>
-
-<div class="panel">
-<label>Journal</label>
-<div id="log"></div>
-</div>
-
-<div id="videos"></div>
+<div class="section" id="sec-news"><div class="section-hd">📰 Actualités LFI</div><div class="section-bd" id="news-list"></div></div>
+<div class="section" id="sec-videos"><div class="section-hd">🎬 Vidéos générées</div><div class="section-bd grid" id="videos-grid"></div></div>
+<div class="section" id="sec-player" style="text-align:center"><div class="section-hd">▶ Lecteur</div><div class="section-bd"><button class="btn btn-primary" onclick="playFilm()" id="btn-play" disabled>▶ Diffuser le journal</button></div></div>
+<div class="log-box" id="log">Prêt.</div>
+<div class="toast" id="toast">OK</div>
+<div class="player" id="player"><canvas id="canvas"></canvas></div>
 
 <script>
-const API_BASE='https://apihub.agnes-ai.com/v1';
-const POLL_BASE='https://apihub.agnes-ai.com/agnesapi';
-const MODEL='agnes-video-v2.0';
-
-let running=false;
-let stop=false;
-let key='';
-
-function log(msg,type){
-type=type||'info';
-const l=document.getElementById('log');
-const line=document.createElement('div');
-line.className='log-'+type;
-line.textContent='['+new Date().toLocaleTimeString('fr-FR')+'] '+msg;
-l.appendChild(line);
-l.scrollTop=l.scrollHeight;
-}
-
+const API='https://apihub.agnes-ai.com/v1', POLL='https://apihub.agnes-ai.com/agnesapi';
+const TXT='agnes-2.5-flash', IMG='agnes-image-2.1-flash', VID='agnes-video-v2.0';
+const STORE='jta_901_v1';
+let st={keys:[],run:false,stop:false,videos:[],play:false};
+const $=id=>document.getElementById(id);
+function log(m){const el=$('log');el.innerHTML+='<br>> '+m;el.scrollTop=el.scrollHeight;}
+function toast(m){const t=$('toast');t.innerText=m;t.classList.add('visible');setTimeout(()=>t.classList.remove('visible'),2000);}
 function saveKey(){
-const k=document.getElementById('key').value.trim();
-if(!k){log('Clé vide','err');return}
-try{localStorage.setItem('jt_key',k)}catch(e){}
-key=k;
-document.getElementById('status').textContent='Clé active : '+k.slice(0,8)+'...';
-document.getElementById('status').style.color='#4a9d6a';
-log('Clé enregistrée','ok');
+  const k=$('api-input').value.trim();
+  if(k.length>5){st.keys=[k];try{localStorage.setItem(STORE,JSON.stringify(st.keys))}catch(e){};$('btn-start').disabled=false;$('status-line').classList.add('ok');$('status-txt').innerText='Clé active (mémoire)';toast('Clé ok');}
 }
-
-function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
-
-async function createVideo(prompt){
-const safePrompt = prompt.replace(/[^\x20-\x7E]/g, ' ');
-const body = {
-    model: MODEL,
-    prompt: safePrompt,
-    num_frames: 145,
-    frame_rate: 24
-};
-
-const res = await fetch(API_BASE+'/videos', {
-    method: 'POST',
-    headers: {
-        'Authorization': 'Bearer ' + key.trim(),
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-});
-
-if(!res.ok) {
-    const txt = await res.text();
-    throw new Error('API: ' + txt.slice(0, 100));
+window.onload=()=>{
+  try{const k=JSON.parse(localStorage.getItem(STORE)||'[]');if(k.length){st.keys=k;$('api-input').value=k[0];$('btn-start').disabled=false;$('status-line').classList.add('ok');$('status-txt').innerText='Clé active';}}catch(e){}
+  if(st.keys.length===0){$('api-input').value='';}
 }
-const d = await res.json();
-return d.video_id || d.id || d.task_id;
+async function fetchAPI(url,opt={},isPoll=false){
+  for(let i=0;i<5;i++){
+    if(st.stop)throw'Stop';
+    const key=st.keys[0]||$('api-input').value.trim().split('\n')[0];
+    const h=Object.assign({},opt.headers||{},{Authorization:'Bearer '+key});
+    try{
+      const r=await fetch(url,Object.assign({},opt,{headers:h}));
+      if(r.status===429){await new Promise(x=>setTimeout(x,5000));continue;}
+      if(r.status===503){await new Promise(x=>setTimeout(x,3000));continue;}
+      return r;
+    }catch(e){await new Promise(x=>setTimeout(x,2000));}
+  }
+  throw 'Erreur réseau';
 }
-
-async function pollVideo(id){
-for(let i=0;i<60;i++){
-if(stop)throw new Error('Arrêt');
-const url = POLL_BASE + '?video_id=' + encodeURIComponent(id) + '&model_name=' + encodeURIComponent(MODEL);
-const res = await fetch(url, {
-    method: 'GET',
-    headers: { 'Authorization': 'Bearer ' + key.trim() }
-});
-
-const d = await res.json();
-const s = d.status || 'unknown';
-const p = d.progress || 0;
-log('Statut : ' + s + ' (' + p + '%)');
-
-if(s === 'completed' || s === 'succeeded'){
-    const u = (d.metadata && d.metadata.url) || d.url || (d.output && d.output.url);
-    if(u) return u;
-    throw new Error('Pas d URL vidéo');
+function jsonParse(txt){
+  if(!txt)return null;let c=txt.replace(/```json/g,'').replace(/```/g,'').trim();let s=c.indexOf('{'),e=c.lastIndexOf('}');
+  if(s<0||e<0)return null;c=c.slice(s,e+1);
+  try{return JSON.parse(c)}catch(err){try{c=c.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g,'$1"$2":').replace(/,\s*([}\]])/g,'$1');return JSON.parse(c)}catch(e2){return null}}
 }
-if(s === 'failed' || s === 'error') throw new Error('Echec génération');
-await sleep(10000);
-}
-throw new Error('Délai dépassé');
-}
-
-async function launch(){
-if(running)return;
-if(!key){log('Ajoutez une clé API','err');return}
-running=true; stop=false;
-
-document.getElementById('launch').disabled=true;
-document.getElementById('stop').classList.add('visible');
-document.getElementById('videos').innerHTML='';
-
-const parti = document.getElementById('parti').value;
-log('Démarrage JT ' + parti.toUpperCase(), 'info');
-
-try {
-    for(let i=0;i<3;i++){
-        if(stop) break;
-        const isPlateau = (i === 0 || i === 2);
-        
-        const prompt = "Style Wes Anderson, cute cat with retro helmet and pastel kimono, 35mm film, perfect symmetry, pastel colors. " + 
-                       (isPlateau ? "Symmetric retro TV studio, cat presenter. " : "Field report in a retro set. ") + 
-                       "Multi-shot editing, cuts, shot-reverse-shot. Character speaks French. No text.";
-
-        log('Envoi Scène ' + (i+1) + '/3...', 'info');
-        const id = await createVideo(prompt);
-        log('Scène ' + (i+1) + ' en cours de création...', 'info');
-        
-        const url = await pollVideo(id);
-        log('Scène ' + (i+1) + ' prête !', 'ok');
-        
-        const v = document.createElement('video');
-        v.src = url;
-        v.controls = true;
-        v.setAttribute('playsinline','');
-        document.getElementById('videos').appendChild(v);
-        
-        if(i < 2 && !stop) {
-            log('Pause 30s...', 'info');
-            await sleep(30000);
-        }
+async function start(){
+  if(st.run)return;st.run=true;st.stop=false;
+  $('btn-start').disabled=true;$('btn-stop').style.display='block';
+  $('sec-news').classList.add('open');$('news-list').innerHTML='Chargement...';
+  log('Démarrage du JT...');
+  try{
+    const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent('https://news.google.com/rss/search?q=La+France+insoumise&hl=fr&gl=FR&ceid=FR:fr'));
+    const xml=new DOMParser().parseFromString(await r.text(),'text/xml');
+    const items=Array.from(xml.querySelectorAll('item')).slice(0,8).map(it=>it.querySelector('title').textContent);
+    const news=items.length?items:["Mobilisation lycéenne : LFI propose une commission d'enquête","Blocage des lycées : Mathilde Panot appelle à la démission","Jean-Luc Mélenchon soutient le mouvement lycéen","Bruno Retailleau envisage l'interdiction de LFI"];
+    $('news-list').innerHTML=news.map((n,i)=>'<div class="news-item">'+(i+1)+'. '+n+'</div>').join('');
+    log(news.length+' news trouvées.');
+    log('Écriture scénario...');
+    const sys="Tu es scénariste. JSON strict.";
+    const prompt=`Style Wes Anderson x Enki Bilal. Personnages chatons kung-fu.
+News: ${news.join(' | ')}
+Génère 4 scènes (2 plateaux, 2 reportages).
+JSON: {"presenter":"Nom","scenes":[{"type":"plateau","action":"desc","line":"phrase"}]}`;
+    const r2=await fetchAPI(API+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:TXT,messages:[{role:'system',content:sys},{role:'user',content:prompt}],temperature:0.7})});
+    const d=await r2.json();
+    let script=jsonParse(d.choices[0].message.content);
+    if(!script||!script.scenes)script={scenes:news.slice(0,4).map(n=>({type:'reportage',action:'Action',line:n.substring(0,50)}))};
+    log('Scénario prêt: '+script.scenes.length+' scènes.');
+    $('sec-videos').classList.add('open');$('videos-grid').innerHTML='';
+    for(let i=0;i<script.scenes.length;i++){
+      if(st.stop)break;
+      const sc=script.scenes[i];
+      const c=document.createElement('div');c.className='card';
+      c.innerHTML=`<div style="font-size:.7rem;margin-bottom:.5rem">Scène ${i+1} : ${sc.type}</div><div style="height:100px;background:#111;display:flex;align-items:center;justify-content:center" id="ld-${i}">⏳</div>`;
+      $('videos-grid').appendChild(c);
+      log('Génération scène '+(i+1)+'...');
+      const promptVid=`Style Wes Anderson pastel. Chatons kung-fu. ${sc.action}. Phrase: "${sc.line}".`;
+      try{
+        const r3=await fetchAPI(API+'/videos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:VID,prompt:promptVid,num_frames:121,frame_rate:24})});
+        const d3=await r3.json();
+        let vidId=d3.video_id||d3.id;
+        if(vidId){
+          let url=null;
+          for(let j=0;j<40;j++){
+            if(st.stop)break;
+            await new Promise(x=>setTimeout(x,4000));
+            const r4=await fetchAPI(POLL+'?video_id='+vidId+'&model_name='+VID);
+            const d4=await r4.json();
+            if(d4.status==='completed'||d4.status==='succeeded'||d4.status==='done'){
+              url=d4.metadata?.url||d4.url||d4.output?.url;break;
+            }
+          }
+          if(url){
+            st.videos.push(url);
+            c.innerHTML=`<video src="${url}" controls playsinline></video><a href="${url}" target="_blank" style="color:var(--acc);display:block;margin-top:.5rem;font-size:.8rem">⬇ Télécharger</a>`;
+            log('Scène '+(i+1)+' prête.');
+            $('btn-play').disabled=false;
+          }else throw 'Timeout';
+        }else throw 'Pas d\'ID';
+      }catch(e){c.innerHTML='<div style="color:var(--err)">Erreur génération</div>';log('Erreur scène '+(i+1)+': '+e);}
+      await new Promise(x=>setTimeout(x,2000));
     }
-    log('JT terminé !', 'ok');
-} catch(e) {
-    log('Erreur : ' + e.message, 'err');
+    $('sec-player').classList.add('open');
+    log('Terminé !');
+  }catch(e){log('Erreur globale: '+e);}
+  st.run=false;$('btn-start').disabled=false;$('btn-stop').style.display='none';
 }
+function stop(){st.stop=true;log('Arrêt...');}
 
-running=false;
-document.getElementById('launch').disabled=false;
-document.getElementById('stop').classList.remove('visible');
+// LECTEUR CANVAS
+async function playFilm(){
+  if(st.play||st.videos.length===0)return;st.play=true;
+  const cv=$('canvas'),ctx=cv.getContext('2d');$('player').classList.add('on');
+  cv.width=window.innerWidth;cv.height=window.innerHeight;
+  for(let url of st.videos){
+    if(!st.play)break;
+    await new Promise(res=>{
+      const v=document.createElement('video');v.src=url;v.playsInline=true;v.muted=false;
+      v.onloadedmetadata=()=>{
+        v.play();
+        function draw(){
+          if(!st.play||v.paused||v.ended){res();return;}
+          ctx.drawImage(v,0,0,cv.width,cv.height);
+          requestAnimationFrame(draw);
+        }
+        draw();
+      };
+      v.onended=res;v.onerror=res;
+    });
+  }
+  st.play=false;$('player').classList.remove('on');
 }
-
-function stopIt(){
-stop=true;
-log('Arrêt demandé','err');
-}
-
-const saved = localStorage.getItem('jt_key');
-if(saved){
-document.getElementById('key').value=saved;
-key=saved;
-document.getElementById('status').textContent='Clé active : '+saved.slice(0,8)+'...';
-document.getElementById('status').style.color='#4a9d6a';
-}
-log('Prêt. Cliquez sur Lancer.','info');
+$('player').onclick=()=>{st.play=false;$('player').classList.remove('on');};
 </script>
 </body>
 </html>
