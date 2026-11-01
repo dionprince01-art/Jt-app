@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image en Vidéo</title>
+<title>Image en Vidéo (Corrigé)</title>
 <style>
   body { background:#111; color:#fff; font-family:sans-serif; padding:15px; }
   input, button { width:100%; padding:12px; margin-bottom:10px; font-size:14px; box-sizing:border-box; }
@@ -13,7 +13,7 @@
 </head>
 <body>
 <input type="text" id="key" placeholder="Ta clé API (sk-...)">
-<input type="text" id="img" placeholder="Colle l'URL de l'image ici (https://platform-outputs...)">
+<input type="text" id="img" placeholder="Colle l'URL de l'image ici">
 <button id="btn">ANIMER L'IMAGE EN VIDÉO</button>
 <div id="out">En attente...</div>
 
@@ -28,18 +28,17 @@ document.getElementById('btn').onclick = async () => {
 
   for (let i = 0; i < 15; i++) {
     try {
-      // 1. On demande la vidéo basée sur l'image
       let res = await fetch("https://apihub.agnes-ai.com/v1/videos", {
         method: "POST",
         headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "agnes-video-2.5-flash",
-          prompt: "Anime doucement cette image, mouvement fluide et cinématographique",
+          prompt: "Anime doucement cette image, mouvement fluide",
           seconds: "4",
           size: "720P",
           aspect_ratio: "16:9",
-          mode: "image",        // <-- Mode image
-          image: imgUrl         // <-- L'image à animer
+          mode: "keyframe",       // <-- Correction 1
+          first_frame: imgUrl     // <-- Correction 2
         })
       });
       
@@ -47,11 +46,10 @@ document.getElementById('btn').onclick = async () => {
       
       if (res.ok) {
         const vid = data.video_id || data.id;
-        out.textContent = "✅ Tâche créée !\nID: " + vid + "\nGénération en cours (ça peut prendre 2-3 min)...";
+        out.textContent = "✅ Tâche créée !\nID: " + vid + "\nGénération...";
         
-        // 2. On attend que ce soit prêt
         for (let j = 0; j < 40; j++) {
-          await new Promise(r => setTimeout(r, 5000)); // Attend 5s
+          await new Promise(r => setTimeout(r, 5000));
           let pRes = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + vid + "&model_name=agnes-video-2.5-flash", {
             headers: { "Authorization": "Bearer " + key }
           });
@@ -70,7 +68,6 @@ document.getElementById('btn').onclick = async () => {
         return;
       }
       
-      // Si la file d'attente est pleine, on attend 60s
       if (data.error && data.error.code === "video_queue_full") {
         out.textContent = "⏳ File pleine. Tentative " + (i+1) + "/15. J'attends 60s...";
         await new Promise(r => setTimeout(r, 60000));
