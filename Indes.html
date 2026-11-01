@@ -1,46 +1,26 @@
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{background:#111;color:#fff;font-family:sans-serif;padding:10px}input,button{width:100%;padding:12px;margin:5px 0;box-sizing:border-box;font-size:16px}button{background:#e87b35;color:#fff;border:none;font-weight:bold}#out{background:#000;color:#0f0;padding:10px;font-family:monospace;white-space:pre-wrap;font-size:12px;min-height:150px}</style>
+<style>body{background:#111;color:#fff;font-family:sans-serif;padding:10px}input,button{width:100%;padding:12px;margin:5px 0;box-sizing:border-box;font-size:16px}button{background:#e87b35;color:#fff;border:none;font-weight:bold}#out{background:#000;color:#0f0;padding:10px;font-family:monospace;white-space:pre-wrap;font-size:12px}</style>
 </head><body>
 <input type="text" id="k" placeholder="Colle ta clé ici (sk-...)">
-<button id="b">TESTER (attente auto si file pleine)</button>
+<button id="b">GÉNÉRER UNE IMAGE</button>
 <div id="out">En attente...</div>
 <script>
 document.getElementById('b').onclick = async () => {
   const key = document.getElementById('k').value.trim(), out = document.getElementById('out');
-  out.style.color = '#ff0'; out.textContent = "Envoi... (si file pleine, j'attends 60s et je réessaie)";
-  
-  for (let i = 0; i < 20; i++) {
-    let r = await fetch("https://apihub.agnes-ai.com/v1/videos", {
+  out.textContent = "Génération en cours...";
+  try {
+    let r = await fetch("https://apihub.agnes-ai.com/v1/images/generations", {
       method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "agnes-video-2.5-flash", prompt: "chat mignon", seconds: "4", size: "720P", aspect_ratio: "16:9", mode: "text" })
+      body: JSON.stringify({ model: "agnes-image-2.5-flash", prompt: "Un chat mignon dans un style Wes Anderson, pastel", size: "1K", ratio: "16:9" })
     });
     let d = await r.json();
-    
     if (r.ok) {
-      const vid = d.video_id || d.id;
-      out.style.color = '#0f0'; out.textContent = "✅ Tâche acceptée ! ID: " + vid + "\nGénération en cours...";
-      for (let j = 0; j < 30; j++) {
-        await new Promise(x => setTimeout(x, 5000));
-        let p = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + vid + "&model_name=agnes-video-2.5-flash", { headers: { "Authorization": "Bearer " + key } });
-        let pd = await p.json();
-        out.textContent = "Statut: " + (pd.status || '?') + " (" + (pd.progress || 0) + "%)";
-        if (pd.status === "completed" || pd.status === "succeeded") {
-          out.style.color = '#0f0'; out.textContent += "\n\n✅ VIDÉO PRÊTE:\n" + (pd.url || pd.metadata?.url); return;
-        }
-        if (pd.status === "failed") { out.style.color = '#f44'; out.textContent = "❌ Échec de génération"; return; }
-      }
-      out.style.color = '#f44'; out.textContent = "❌ Timeout (vidéo pas prête en 2min30)"; return;
-    }
-    
-    if (d.error && d.error.code === "video_queue_full") {
-      out.style.color = '#ff0'; out.textContent = "⏳ File pleine. Tentative " + (i+1) + "/20. J'attends 60s...";
-      await new Promise(x => setTimeout(x, 60000));
+      out.style.color = '#0f0'; out.textContent = "✅ Image prête !\n\nLien :\n" + (d.data?.[0]?.url || "Erreur: pas d'URL");
     } else {
-      out.style.color = '#f44'; out.textContent = "❌ Erreur: " + JSON.stringify(d); return;
+      out.style.color = '#f44'; out.textContent = "❌ Erreur: " + JSON.stringify(d);
     }
-  }
-  out.style.color = '#f44'; out.textContent = "❌ 20 tentatives échouées. Réessaie plus tard (heures creuses).";
+  } catch(e) { out.style.color = '#f44'; out.textContent = "❌ " + e.message; }
 };
 </script>
 </body></html>
