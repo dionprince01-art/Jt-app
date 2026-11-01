@@ -1,88 +1,87 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test Video</title>
+<title>Test API Agnes - Diagnostic</title>
 <style>
-body { background: #000; color: #fff; font-family: sans-serif; padding: 10px; }
-input, button { width: 100%; padding: 15px; margin: 5px 0; box-sizing: border-box; }
-button { background: #ff4500; color: white; font-weight: bold; border: none; }
-#log { background: #111; color: #00ff00; padding: 10px; height: 200px; overflow-y: scroll; font-family: monospace; }
-video { width: 100%; margin-top: 10px; }
+    body { background: #111; color: #fff; font-family: sans-serif; padding: 20px; }
+    input { width: 100%; padding: 10px; margin-bottom: 10px; font-size: 16px; }
+    button { width: 100%; padding: 15px; background: #ff4500; color: white; border: none; font-size: 18px; font-weight: bold; }
+    #console { background: #000; color: #00ff00; padding: 15px; margin-top: 20px; font-family: monospace; white-space: pre-wrap; min-height: 200px; border: 1px solid #333; font-size: 14px; word-break: break-all; }
 </style>
 </head>
 <body>
 
-<input type="text" id="key" placeholder="Colle ta clé sk- ici">
-<button onclick="lancer()">LANCER</button>
-<div id="log">Prêt.</div>
-<div id="resultat"></div>
+<!-- 01. Champ pour la clé API -->
+<input type="text" id="cle-api" placeholder="Colle ta clé API ici (sk-...)">
+
+<!-- 02. Bouton pour lancer le test -->
+<button id="bouton-test">LANCER LE TEST</button>
+
+<!-- 03. La zone noire où s'affichera l'erreur exacte -->
+<div id="console">En attente...</div>
 
 <script>
-function afficher(texte) {
-    document.getElementById("log").innerHTML += "<br>> " + texte;
-}
-
-async function lancer() {
-    // On récupère la clé SANS la modifier
-    var cle = document.getElementById("key").value.trim();
+// 04. On écoute le clic sur le bouton
+document.getElementById('bouton-test').addEventListener('click', async () => {
     
-    if(cle.length < 10) { return alert("Clé invalide"); }
+    // 05. On récupère la clé entrée par l'utilisateur
+    const maCle = document.getElementById('cle-api').value.trim();
+    
+    // 06. On récupère la zone d'affichage
+    const zoneConsole = document.getElementById('console');
 
-    document.getElementById("log").innerHTML = "Démarrage...";
+    // 07. Vérification de base
+    if(!maCle.startsWith('sk-')) {
+        zoneConsole.style.color = '#ff4444';
+        zoneConsole.textContent = "Erreur : La clé ne commence pas par sk-";
+        return;
+    }
+
+    // 08. On affiche que la requête commence
+    zoneConsole.style.color = '#ffff00';
+    zoneConsole.textContent = "Envoi de la requête à l'API Agnes...\nPatientez quelques secondes...";
 
     try {
-        afficher("Envoi...");
-        
-        var corps = JSON.stringify({
-            model: "agnes-video-v2.0",
-            prompt: "A cute kitten, cinematic",
-            num_frames: 121,
-            frame_rate: 24
-        });
-
-        var maRequete = new Request("https://apihub.agnes-ai.com/v1/videos", {
+        // 09. On prépare la requête avec les paramètres MINIMAUX recommandés
+        const reponse = await fetch("https://apihub.agnes-ai.com/v1/videos", {
             method: "POST",
-            body: corps
+            headers: {
+                "Authorization": "Bearer " + maCle,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": "agnes-video-v2.0",
+                "prompt": "Un chat qui marche sur une plage au coucher du soleil",
+                "width": 1152,
+                "height": 768,
+                "num_frames": 121,  // <-- On utilise 121 qui est valide (8*15+1)
+                "frame_rate": 24
+            })
         });
 
-        // On ajoute la clé exactement comme le demande la doc
-        maRequete.headers.append("Authorization", "Bearer " + cle);
-        maRequete.headers.append("Content-Type", "application/json");
+        // 10. On lit la réponse du serveur
+        const donnees = await reponse.json();
 
-        var reponse = await fetch(maRequete);
-
-        if(!reponse.ok) throw new Error("Erreur API: " + reponse.status);
-
-        var data = await reponse.json();
-        var id = data.video_id || data.id;
-        
-        afficher("Tâche OK: " + id);
-        afficher("Attente...");
-
-        for(var i = 0; i < 50; i++) {
-            await new Promise(r => setTimeout(r, 5000));
-            
-            var maPoll = new Request("https://apihub.agnes-ai.com/agnesapi?video_id=" + id + "&model_name=agnes-video-v2.0");
-            maPoll.headers.append("Authorization", "Bearer " + cle);
-
-            var resPoll = await fetch(maPoll);
-            var info = await resPoll.json();
-            
-            afficher(info.status + " - " + (info.progress || 0) + "%");
-
-            if(info.status === "completed" || info.status === "succeeded") {
-                var url = info.metadata.url || info.url;
-                document.getElementById("resultat").innerHTML = '<video src="' + url + '" controls autoplay loop></video>';
-                afficher("FINI !");
-                return;
-            }
+        // 11. Si ça marche (code 200)
+        if (reponse.ok) {
+            zoneConsole.style.color = '#00ff00';
+            zoneConsole.textContent = "✅ SUCCÈS TOTAL !\n\nVoici la réponse du serveur :\n" + JSON.stringify(donnees, null, 2);
+        } 
+        // 12. Si ça plante (code 400, 401, 500, etc.)
+        else {
+            zoneConsole.style.color = '#ff4444';
+            zoneConsole.textContent = "❌ ERREUR " + reponse.status + "\n\nVoici EXACTEMENT ce que le serveur Agnes a répondu :\n\n" + JSON.stringify(donnees, null, 2);
         }
-    } catch(e) {
-        afficher("ERREUR: " + e.message);
+
+    } catch (erreur) {
+        // 13. Si le téléphone n'arrive pas à contacter internet
+        zoneConsole.style.color = '#ff4444';
+        zoneConsole.textContent = "❌ Erreur réseau : " + erreur.message;
     }
-}
+});
 </script>
+
 </body>
 </html>
