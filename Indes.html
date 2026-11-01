@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image en Vidéo (Corrigé)</title>
+<title>Image en Vidéo (Corrigé v2)</title>
 <style>
   body { background:#111; color:#fff; font-family:sans-serif; padding:15px; }
   input, button { width:100%; padding:12px; margin-bottom:10px; font-size:14px; box-sizing:border-box; }
@@ -37,8 +37,8 @@ document.getElementById('btn').onclick = async () => {
           seconds: "4",
           size: "720P",
           aspect_ratio: "16:9",
-          mode: "keyframe",       // <-- Correction 1
-          first_frame: imgUrl     // <-- Correction 2
+          mode: "reference",       // <-- Correction 1
+          images: [imgUrl]         // <-- Correction 2 (tableau)
         })
       });
       
