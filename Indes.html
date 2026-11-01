@@ -3,73 +3,69 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test Agnes 2.5 Flash</title>
+<title>Mini Test Vidéo</title>
 <style>
-  body { background: #111; color: #eee; font-family: sans-serif; padding: 16px; }
-  input { width: 100%; padding: 12px; margin-bottom: 10px; font-size: 16px; box-sizing: border-box; }
-  button { width: 100%; padding: 16px; background: #ff4500; color: #fff; border: none; font-size: 18px; font-weight: bold; }
-  #out { background: #000; color: #0f0; padding: 14px; margin-top: 16px; font-family: monospace; white-space: pre-wrap; word-break: break-all; min-height: 160px; font-size: 13px; line-height: 1.5; border: 1px solid #333; }
+  body { background:#111; color:#fff; font-family:sans-serif; padding:15px; }
+  input, button { width:100%; padding:12px; margin-bottom:10px; font-size:16px; box-sizing:border-box; }
+  button { background:#e87b35; color:#fff; border:none; font-weight:bold; }
+  #out { background:#000; color:#0f0; padding:10px; font-family:monospace; white-space:pre-wrap; font-size:12px; min-height:100px; }
 </style>
 </head>
 <body>
-
 <input type="text" id="key" placeholder="Colle ta clé API ici (sk-...)">
-<button id="go">TESTER agnes-video-2.5-flash</button>
+<button id="btn">LANCER LE TEST (4 secondes)</button>
 <div id="out">En attente...</div>
 
 <script>
-document.getElementById('go').addEventListener('click', async () => {
+document.getElementById('btn').addEventListener('click', async () => {
   const key = document.getElementById('key').value.trim();
   const out = document.getElementById('out');
-
-  if (!key.startsWith('sk-')) {
-    out.style.color = '#f44';
-    out.textContent = 'La clé doit commencer par sk-';
-    return;
-  }
-
   out.style.color = '#ff0';
-  out.textContent = 'Envoi de la requête à agnes-video-2.5-flash...\n(attends quelques secondes)';
+  out.textContent = "Envoi à l'API (ça peut prendre 10s)...";
 
   try {
-    // ⚠️ Seulement les paramètres supportés par 2.5-flash
-    const res = await fetch('https://apihub.agnes-ai.com/v1/videos', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + key,
-        'Content-Type': 'application/json'
-      },
+    // 1. Création de la tâche
+    let res = await fetch("https://apihub.agnes-ai.com/v1/videos", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: 'agnes-video-2.5-flash',
-        prompt: 'Un chat qui marche sur une plage au coucher du soleil, plan cinématographique',
-        seconds: '5',          // ← chaîne de caractères, pas un nombre
-        mode: 'text',          // ← nouvelle version : mode est obligatoire, valeurs text/keyframe/reference
-        size: '720P',          // ← fixé à 720P, sinon erreur 400
-        aspect_ratio: '16:9'   // ← ratio, pas width/height
+        model: "agnes-video-2.5-flash",
+        prompt: "Un chat mignon qui cligne des yeux",
+        seconds: "4",
+        size: "720P",
+        aspect_ratio: "16:9",
+        mode: "text"
       })
     });
+    
+    let data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
 
-    const data = await res.json();
+    const videoId = data.video_id || data.id;
+    out.textContent = "✅ Tâche créée ! ID: " + videoId + "\nAttente de la génération (patientez)...";
 
-    if (res.ok) {
-      out.style.color = '#0f0';
-      out.textContent =
-        '✅ Requête acceptée !\n\n' +
-        'video_id : ' + (data.video_id || data.id || '—') + '\n\n' +
-        'Réponse complète :\n' + JSON.stringify(data, null, 2) +
-        '\n\n(Ensuite, il faut interroger avec /agnesapi pour obtenir l\'URL de la vidéo)';
-    } else {
-      out.style.color = '#f44';
-      out.textContent =
-        '❌ HTTP ' + res.status + '\n\n' +
-        'Message d\'erreur du serveur :\n' + JSON.stringify(data, null, 2);
+    // 2. Attente (polling)
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 5000)); // Attend 5s
+      let pRes = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + videoId + "&model_name=agnes-video-2.5-flash", {
+        headers: { "Authorization": "Bearer " + key }
+      });
+      let pData = await pRes.json();
+      
+      out.textContent = "Statut: " + (pData.status || '...') + " (" + (pData.progress || 0) + "%)";
+      
+      if (pData.status === "completed" || pData.status === "succeeded" || pData.status === "done") {
+        out.style.color = '#0f0';
+        out.textContent += "\n\n✅ VIDÉO PRÊTE !\nLien :\n" + (pData.url || pData.metadata?.url);
+        break;
+      }
+      if (pData.status === "failed") throw new Error("Échec de la génération");
     }
-  } catch (e) {
+  } catch(e) {
     out.style.color = '#f44';
-    out.textContent = '❌ Erreur réseau : ' + e.message;
+    out.textContent = "❌ ERREUR:\n" + e.message;
   }
 });
 </script>
-
 </body>
 </html>
