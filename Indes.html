@@ -1,113 +1,90 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Studio Video</title>
+<title>Test Video</title>
 <style>
 body { background: #000; color: #fff; font-family: sans-serif; padding: 10px; }
-input, button { width: 100%; padding: 15px; margin: 5px 0; box-sizing: border-box; border-radius: 5px; }
+input, button { width: 100%; padding: 15px; margin: 5px 0; box-sizing: border-box; }
 button { background: #ff4500; color: white; font-weight: bold; border: none; }
-#log { background: #111; color: #00ff00; padding: 10px; height: 200px; overflow-y: scroll; font-family: monospace; margin-top: 10px; }
-video { width: 100%; margin-top: 10px; border-radius: 5px; }
+#log { background: #111; color: #00ff00; padding: 10px; height: 200px; overflow-y: scroll; font-family: monospace; }
+video { width: 100%; margin-top: 10px; }
 </style>
 </head>
 <body>
 
-<h2>Génération Vidéo</h2>
 <input type="text" id="key" placeholder="Colle ta clé sk- ici">
-<button onclick="lancer()">LANCER LA GÉNÉRATION</button>
+<button onclick="lancer()">LANCER</button>
 <div id="log">Prêt.</div>
 <div id="resultat"></div>
 
 <script>
 function afficher(texte) {
-    var zone = document.getElementById("log");
-    zone.innerHTML = zone.innerHTML + "<br>> " + texte;
-    zone.scrollTop = zone.scrollHeight;
+    document.getElementById("log").innerHTML += "<br>> " + texte;
 }
 
 async function lancer() {
-    // On récupère la clé et on supprime TOUS les caractères invisibles
+    // 1. On nettoie la clé de TOUS les caractères bizarres
     var cle = document.getElementById("key").value;
-    cle = cle.replace(/[^\x20-\x7E]/g, '').trim(); 
+    cle = cle.replace(/[^a-zA-Z0-9\-_]/g, ''); 
     
-    if(cle.length < 10) {
-        alert("Clé invalide");
-        return;
-    }
+    if(cle.length < 10) { return alert("Clé invalide"); }
 
     document.getElementById("log").innerHTML = "Démarrage...";
-    document.getElementById("resultat").innerHTML = "";
 
     try {
-        afficher("Envoi de la demande...");
+        afficher("Envoi...");
         
-        // On utilise une méthode simple sans "Headers"
-        var maRequete = {
-            method: "POST",
-            body: JSON.stringify({
-                model: "agnes-video-v2.0",
-                prompt: "A cute kitten in a spacesuit, cinematic, pastel colors",
-                num_frames: 121,
-                frame_rate: 24
-            })
-        };
-        
-        var lesOptions = Object.assign({}, maRequete, {
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + cle
-            }
+        // 2. On prépare les données
+        var corps = JSON.stringify({
+            model: "agnes-video-v2.0",
+            prompt: "A cute kitten, cinematic",
+            num_frames: 121,
+            frame_rate: 24
         });
 
-        var reponse = await fetch("https://apihub.agnes-ai.com/v1/videos", lesOptions);
+        // 3. On construit la requête manuellement, sans utiliser de "Headers" qui buguent
+        var maRequete = new Request("https://apihub.agnes-ai.com/v1/videos", {
+            method: "POST",
+            body: corps
+        });
 
-        if(!reponse.ok) {
-            throw new Error("Erreur " + reponse.status);
-        }
+        // 4. On ajoute la clé API de la façon la plus basique possible
+        maRequete.headers.append("Authorization", "Bearer " + cle);
+        maRequete.headers.append("Content-Type", "application/json");
 
-        var resultat = await reponse.json();
-        var idVideo = resultat.video_id || resultat.id;
+        // 5. On lance la requête
+        var reponse = await fetch(maRequete);
+
+        if(!reponse.ok) throw new Error("Erreur API: " + reponse.status);
+
+        var data = await reponse.json();
+        var id = data.video_id || data.id;
         
-        afficher("Tâche créée : " + idVideo);
-        afficher("Attente de la création...");
+        afficher("Tâche OK: " + id);
+        afficher("Attente...");
 
-        var lienFinal = null;
-
-        for(var i = 0; i < 60; i++) {
+        for(var i = 0; i < 50; i++) {
             await new Promise(r => setTimeout(r, 5000));
             
-            var reponseAttente = await fetch("https://apihub.agnes-ai.com/agnesapi?video_id=" + idVideo + "&model_name=agnes-video-v2.0", {
-                headers: {
-                    "Authorization": "Bearer " + cle
-                }
-            });
-            
-            var infos = await reponseAttente.json();
-            var statut = infos.status || "en cours";
-            var pourcentage = infos.progress || 0;
-            
-            afficher(statut + " - " + pourcentage + "%");
+            var maPoll = new Request("https://apihub.agnes-ai.com/agnesapi?video_id=" + id + "&model_name=agnes-video-v2.0");
+            maPoll.headers.append("Authorization", "Bearer " + cle);
 
-            if(statut === "completed" || statut === "succeeded") {
-                lienFinal = infos.metadata.url || infos.url;
-                break;
-            }
-            if(statut === "failed" || statut === "error") {
-                throw new Error("Echec de l'IA.");
+            var resPoll = await fetch(maPoll);
+            var info = await resPoll.json();
+            
+            afficher(info.status + " - " + (info.progress || 0) + "%");
+
+            if(info.status === "completed" || info.status === "succeeded") {
+                var url = info.metadata.url || info.url;
+                document.getElementById("resultat").innerHTML = '<video src="' + url + '" controls autoplay loop></video>';
+                afficher("FINI !");
+                return;
             }
         }
-
-        if(lienFinal) {
-            afficher("SUCCÈS !");
-            document.getElementById("resultat").innerHTML = '<video src="' + lienFinal + '" controls autoplay loop></video>';
-        } else {
-            throw new Error("Temps écoulé.");
-        }
-
     } catch(e) {
-        afficher("ERREUR : " + e.message);
+        afficher("ERREUR: " + e.message);
     }
 }
 </script>
