@@ -77,18 +77,28 @@ function init() {
     }
 }
 
+// CORRECTION ICI : la fonction fetch est simplifiée pour éviter les bugs
 async function apiFetch(url, options) {
     if (keys.length === 0) throw new Error("No API keys provided.");
     const key = keys[Math.floor(Math.random() * keys.length)];
     
-    if (!options.headers) options.headers = {};
-    options.headers['Authorization'] = `Bearer ${key}`;
-    options.headers['Content-Type'] = 'application/json';
+    let headers = new Headers();
+    headers.append("Authorization", "Bearer " + key);
+    headers.append("Content-Type", "application/json");
 
-    const res = await fetch(url, options);
+    let fetchOptions = {
+        method: options.method || 'GET',
+        headers: headers
+    };
+
+    if (options.body) {
+        fetchOptions.body = options.body;
+    }
+
+    const res = await fetch(url, fetchOptions);
     if (!res.ok) {
         const err = await res.text();
-        throw new Error(`HTTP ${res.status}: ${err.slice(0, 50)}`);
+        throw new Error("HTTP " + res.status + ": " + err.slice(0, 50));
     }
     return res;
 }
