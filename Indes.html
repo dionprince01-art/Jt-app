@@ -1,186 +1,123 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cinema Studio AI</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{--bg:#0a0a12;--bg2:#12121c;--panel:#16161f;--border:#2a2a3a;--ink:#e8e6e0;--dim:#8a8896;--acc:#e5c15a;--acc2:#e87b35;--ok:#4a9d6a;--err:#c85a4a;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:1.5rem 1rem 24rem;font-size:15px;line-height:1.55;max-width:1100px;margin:0 auto}
-h1{font-size:1.8rem;text-align:center;margin-bottom:1.5rem;background:linear-gradient(135deg,var(--acc2),var(--acc));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.panel,.section{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:1.2rem;margin-bottom:1rem}
-.btn{width:100%;padding:1rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--ink);font-size:.85rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-bottom:.7rem;transition:all .2s;font-family:inherit}
-.btn:hover:not(:disabled){background:var(--border)}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.btn-primary{background:linear-gradient(135deg,rgba(232,123,53,.2),rgba(229,193,90,.15));border-color:var(--acc);color:var(--acc);font-size:1.15rem;padding:1.2rem;}
-textarea{width:100%;padding:.85rem 1rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--ink);font-family:monospace;font-size:.78rem;margin-bottom:.6rem;resize:vertical;min-height:76px;}
-textarea:focus{outline:none;border-color:var(--acc);}
-.hidden{display:none!important}
-#log-box{background:#000;color:#0f0;font-family:monospace;font-size:.72rem;height:150px;overflow-y:auto;padding:.5rem;border-radius:6px;border:1px solid var(--border);margin-top:1rem;}
-.videos-grid{display:grid;grid-template-columns:1fr;gap:1rem;margin-top:1rem;}
-.scene-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:1rem;}
-.scene-card video{width:100%;border-radius:4px;background:#000;display:block;}
+body { background: #0a0a12; color: #e8e6e0; font-family: sans-serif; padding: 1rem; }
+.panel { background: #16161f; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #333; }
+button { width: 100%; padding: 1rem; background: #e87b35; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+textarea { width: 100%; padding: 0.5rem; background: #000; color: #0f0; border: 1px solid #333; font-family: monospace; }
+#log-box { background: #000; color: #0f0; font-family: monospace; font-size: 0.8rem; height: 200px; overflow-y: auto; padding: 0.5rem; border: 1px solid #333; margin-top: 1rem; }
+video { width: 100%; margin-top: 1rem; border-radius: 6px; }
 </style>
 </head>
 <body>
 
 <h1>Cinema Studio AI</h1>
 
-<div class="panel" id="api-panel">
-<label style="font-size:.75rem;font-weight:bold;margin-bottom:.5rem;display:block;">API Keys (One per line)</label>
-<textarea id="api-keys-input" rows="3" spellcheck="false" autocomplete="off"></textarea>
-<button type="button" class="btn" id="save-btn" onclick="saveKeys()">Save Keys</button>
-<div id="api-status" style="font-size:.75rem;margin-top:.5rem;">No keys saved.</div>
-</div>
-
 <div class="panel">
-<button type="button" class="btn btn-primary" id="launch-btn" onclick="runPipeline()">▶ Start Generation</button>
-<button type="button" class="btn hidden" id="play-btn" onclick="playVideo()">▶ Play Video</button>
+    <label>Clé API :</label>
+    <input type="text" id="api-key" style="width:100%; padding:0.8rem; margin-top:5px; margin-bottom:10px; background:#000; color:white; border:1px solid #333;" placeholder="sk-...">
+    <button onclick="start()">▶ GÉNÉRER LA VIDÉO</button>
 </div>
 
-<div class="section hidden" id="results-section">
-<h3>Generated Video</h3>
-<div class="videos-grid" id="video-container"></div>
-</div>
-
-<div id="log-box"></div>
+<div id="log-box">Prêt.</div>
+<div id="video-container"></div>
 
 <script>
 const API_BASE = 'https://apihub.agnes-ai.com/v1';
 const POLL_BASE = 'https://apihub.agnes-ai.com/agnesapi';
-const MODEL_VIDEO = 'agnes-video-v2.0';
-const STORAGE_KEY = 'studio_keys_v1';
-
-let keys = [];
-let isRunning = false;
+const MODEL = 'agnes-video-v2.0';
 
 function log(msg) {
     const box = document.getElementById('log-box');
-    box.innerHTML += `> ${msg}<br>`;
+    box.innerHTML += '<br>> ' + msg;
     box.scrollTop = box.scrollHeight;
 }
 
-function saveKeys() {
-    const input = document.getElementById('api-keys-input').value;
-    keys = input.split('\n').map(k => k.trim()).filter(k => k.length > 5);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
-    document.getElementById('api-status').innerHTML = `✅ ${keys.length} key(s) active.`;
+// Fonction magique pour éviter le bug des caractères invisibles du téléphone
+function cleanString(str) {
+    if (!str) return "";
+    return str.replace(/[^\x20-\x7E]/g, '').trim();
 }
 
-function init() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        keys = JSON.parse(saved);
-        document.getElementById('api-keys-input').value = keys.join('\n');
-        document.getElementById('api-status').innerHTML = `✅ ${keys.length} key(s) active.`;
-    }
-}
-
-// CORRECTION ICI : la fonction fetch est simplifiée pour éviter les bugs
-async function apiFetch(url, options) {
-    if (keys.length === 0) throw new Error("No API keys provided.");
-    const key = keys[Math.floor(Math.random() * keys.length)];
+async function start() {
+    const rawKey = document.getElementById('api-key').value;
+    const key = cleanString(rawKey);
     
-    let headers = new Headers();
-    headers.append("Authorization", "Bearer " + key);
-    headers.append("Content-Type", "application/json");
-
-    let fetchOptions = {
-        method: options.method || 'GET',
-        headers: headers
-    };
-
-    if (options.body) {
-        fetchOptions.body = options.body;
+    if (key.length < 5) {
+        alert("Mets une vraie clé API !");
+        return;
     }
 
-    const res = await fetch(url, fetchOptions);
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error("HTTP " + res.status + ": " + err.slice(0, 50));
-    }
-    return res;
-}
-
-async function runPipeline() {
-    if (isRunning) return;
-    if (keys.length === 0) return alert("Please save an API key first.");
-    
-    isRunning = true;
-    document.getElementById('launch-btn').disabled = true;
-    document.getElementById('results-section').classList.remove('hidden');
-    document.getElementById('video-container').innerHTML = '';
-    document.getElementById('play-btn').classList.add('hidden');
-    
-    log("Starting pipeline...");
+    document.getElementById('log-box').innerHTML = "Démarrage...";
+    document.getElementById('video-container').innerHTML = "";
 
     try {
-        log("Creating video task...");
-        const prompt = "A beautiful cinematic shot of a kitten wearing a retro space helmet, Wes Anderson style, pastel colors, symmetrical.";
+        log("Envoi de la demande à l'IA...");
         
-        const resTask = await apiFetch(`${API_BASE}/videos`, {
-            method: 'POST',
-            body: JSON.stringify({
-                model: MODEL_VIDEO,
-                prompt: prompt,
-                num_frames: 121,
-                frame_rate: 24
-            })
+        // On construit la requête SANS utiliser "Headers" pour éviter le bug
+        const reqBody = JSON.stringify({
+            model: MODEL,
+            prompt: "A beautiful cinematic shot of a kitten wearing a retro space helmet, Wes Anderson style, pastel colors.",
+            num_frames: 121,
+            frame_rate: 24
         });
-        
-        const dataTask = await resTask.json();
-        const videoId = dataTask.video_id || dataTask.id;
-        if (!videoId) throw new Error("No video ID returned.");
-        
-        log(`Task created: ${videoId}`);
-        log("Waiting for generation (this can take up to 2 mins)...");
 
-        let videoUrl = null;
-        for (let i = 0; i < 60; i++) {
-            await new Promise(r => setTimeout(r, 5000));
+        // Requête 1 : Création
+        const res = await fetch(API_BASE + '/videos', {
+            method: 'POST',
+            body: reqBody,
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + key
+            }
+        });
+
+        if (!res.ok) throw new Error("Erreur création: " + res.status);
+        
+        const data = await res.json();
+        const videoId = data.video_id || data.id;
+        log("Tâche créée ! ID: " + videoId);
+        log("Attente de la génération (1 à 2 minutes)...");
+
+        // Requête 2 : Attente
+        let urlFinale = null;
+        for(let i=0; i<50; i++) {
+            await new Promise(r => setTimeout(r, 5000)); // attend 5 sec
             
-            const resPoll = await apiFetch(`${POLL_BASE}?video_id=${videoId}&model_name=${MODEL_VIDEO}`, {
-                method: 'GET'
+            const resPoll = await fetch(POLL_BASE + '?video_id=' + videoId + '&model_name=' + MODEL, {
+                method: 'GET',
+                headers: {
+                    "Authorization": "Bearer " + key
+                }
             });
             
             const dataPoll = await resPoll.json();
-            const progress = dataPoll.progress || 0;
-            log(`Status: ${dataPoll.status} - ${progress}%`);
+            log("Statut: " + (dataPoll.status || "en cours") + " - " + (dataPoll.progress || 0) + "%");
             
             if (dataPoll.status === 'completed' || dataPoll.status === 'succeeded') {
-                videoUrl = (dataPoll.metadata && dataPoll.metadata.url) || dataPoll.url;
+                urlFinale = dataPoll.metadata?.url || dataPoll.url;
                 break;
             }
             if (dataPoll.status === 'failed' || dataPoll.status === 'error') {
-                throw new Error("Generation failed on server.");
+                throw new Error("L'IA a échoué.");
             }
         }
 
-        if (videoUrl) {
-            log("✅ Video ready!");
-            document.getElementById('video-container').innerHTML = `
-                <div class="scene-card">
-                    <video src="${videoUrl}" controls></video>
-                </div>
-            `;
-            document.getElementById('play-btn').classList.remove('hidden');
-            document.getElementById('play-btn').onclick = () => {
-                window.open(videoUrl, '_blank');
-            };
+        if (urlFinale) {
+            log("✅ VIDÉO PRÊTE !");
+            document.getElementById('video-container').innerHTML = '<video src="' + urlFinale + '" controls autoplay loop></video>';
         } else {
-            throw new Error("Timeout or missing URL.");
+            throw new Error("Temps d'attente dépassé.");
         }
 
-    } catch (err) {
-        log(`❌ Error: ${err.message}`);
+    } catch (e) {
+        log("❌ Erreur : " + e.message);
     }
-
-    isRunning = false;
-    document.getElementById('launch-btn').disabled = false;
 }
-
-init();
 </script>
 
 </body>
